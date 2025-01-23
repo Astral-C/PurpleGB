@@ -170,6 +170,13 @@ namespace Gameboy {
                     break;
                 }
 
+                case 0x13: {
+                    SetDE(GetDE()+1);
+                    std::cout << "inc DE" << std::endl;
+                    cycles += 8;
+                    break;
+                }
+
                 case 0x17: {
                     uint8_t t = GetA();
                     SetA((GetA() << 1) | GetCF());
@@ -216,6 +223,13 @@ namespace Gameboy {
                     break;
                 }
 
+                case 0x23: {
+                    SetHL(GetHL()+1);
+                    std::cout << "inc HL" << std::endl;
+                    cycles += 8;
+                    break;
+                }
+
                 case 0x31: {
                     SP = static_cast<uint16_t>(mROM[PC++]) | (static_cast<uint16_t>(mROM[PC++]) << 8);
                     std::cout << "ld SP, " << std::hex << SP << std::dec << std::endl;
@@ -228,6 +242,15 @@ namespace Gameboy {
                     SetHL(GetHL()-1);
                     std::cout << "ld (HL-), A" << std::endl;
                     cycles += 8;
+                    break;
+                }
+
+                case 0x34: {
+                    uint8_t t = mMemory->ReadU8(GetHL()) + 1;
+                    SetNF(false);
+                    SetZF(t == 0);
+                    SetHF(mMemory->ReadU8(GetHL()) & 0x0F);
+                    mMemory->WriteU8(GetHL(), t);
                     break;
                 }
 
@@ -249,6 +272,12 @@ namespace Gameboy {
                     mMemory->WriteU8(GetHL(), GetA());
                     std::cout << "ld (HL), A" << std::endl;
                     cycles += 8;
+                    break;
+                }
+
+                case 0x7B: {
+                    SetA(GetE());
+                    std::cout << "ld A, E" << std::endl;
                     break;
                 }
 
@@ -301,6 +330,14 @@ namespace Gameboy {
                     break;
                 }
 
+                case 0xC9: {
+                    PC = mMemory->ReadU16(SP);
+                    SP += 2;
+                    std::cout << std::format("RET ({:04x})", PC) << std::endl;
+                    cycles += 16;
+                    break;
+                }
+
                 case 0xCB: {
                     uint8_t cbopcode = mROM[PC++];
                     cycles += 4;
@@ -331,17 +368,25 @@ namespace Gameboy {
 
                 case 0xCD: {
                     uint16_t addr = static_cast<uint16_t>(mROM[PC++]) | (static_cast<uint16_t>(mROM[PC++]) << 8);
-                    mMemory->WriteU16(SP, addr);
                     SP -= 2;
+                    mMemory->WriteU16(SP, PC);
+                    std::cout << std::format("Wrote Return Pointer {:04x}", mMemory->ReadU16(SP)) << std::endl;
                     PC = addr;
                     std::cout << "CALL " << std::hex << addr << std::dec << std::endl;
                     cycles += 24;
                     break;
                 }
 
-                //case 0xF3: {
-                //    break;
-                //}
+                case 0xFE: {
+                    uint8_t u8 = mROM[PC++];
+                    uint8_t t = GetA() - u8;
+                    SetZF(t == 0);
+                    SetNF(true);
+                    SetHF((GetA() & 0x0F) == 0);
+                    SetCF(u8 > GetA());
+                    std::cout << "CP A, " << std::hex << (unsigned int)u8 << std::dec << std::endl;
+                    break;
+                }
 
                 default: {
                     std::cout << "Unimplemented Opcode: " << std::hex << (unsigned int)opcode << std::dec << std::endl;
