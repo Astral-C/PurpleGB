@@ -189,6 +189,14 @@ namespace Gameboy {
                     break;
                 }
 
+                case 0x18: {
+                    int8_t to = static_cast<int8_t>(mROM[PC++]);
+                    std::cout << "JR " << std::hex << (int)mROM[PC] << std::dec << std::endl;
+                    PC += to;
+                    cycles += 12;
+                    break;
+                }
+
                 case 0x1A: {
                     std::cout << "LD A,(DE)" << std::endl;
                     SetA(mMemory->ReadU8(GetDE()));
@@ -230,6 +238,25 @@ namespace Gameboy {
                     break;
                 }
 
+                case 0x28: {
+                    int8_t to = static_cast<int8_t>(mROM[PC++]);
+                    if(GetZF()){
+                        PC += to;
+                        cycles += 12;
+                    } else {
+                        cycles += 8;
+                    }
+                    std::cout << "jr Z, " << (int)to << std::endl;
+                    break;
+                }
+
+                case 0x2E: {
+                    SetL(mROM[PC++]);
+                    std::cout << "LD L, " << (unsigned int)mROM[PC-1] << std::endl;
+                    cycles += 8;
+                    break;
+                }
+
                 case 0x31: {
                     SP = static_cast<uint16_t>(mROM[PC++]) | (static_cast<uint16_t>(mROM[PC++]) << 8);
                     std::cout << "ld SP, " << std::hex << SP << std::dec << std::endl;
@@ -254,6 +281,17 @@ namespace Gameboy {
                     break;
                 }
 
+                case 0x3D: {
+                    uint8_t a = GetA();
+                    SetA(a-1);
+                    SetZF(GetA() == 0x00);
+                    std::cout << "dec A"<< std::endl;
+                    SetNF(true);
+                    SetHF((a & 0x0F) == 0);
+                    cycles += 4;
+                    break;
+                }
+
                 case 0x3E: {
                     SetA(mROM[PC++]);
                     std::cout << "ld A, " << std::hex << (unsigned int)GetA() << std::dec << std::endl;
@@ -264,7 +302,7 @@ namespace Gameboy {
                 case 0x4F: {
                     SetC(GetA());
                     std::cout << "ld C, A" << std::endl;
-                    cycles += 8;
+                    cycles += 4;
                     break;
                 }
 
@@ -272,6 +310,13 @@ namespace Gameboy {
                     mMemory->WriteU8(GetHL(), GetA());
                     std::cout << "ld (HL), A" << std::endl;
                     cycles += 8;
+                    break;
+                }
+
+                case 0x78: {
+                    SetA(GetB());
+                    std::cout << "ld A, B" << std::endl;
+                    cycles += 4;
                     break;
                 }
 
@@ -293,6 +338,18 @@ namespace Gameboy {
                     break;
                 }
 
+                case 0x86: {
+                    uint16_t t = static_cast<uint16_t>(GetA()) + mMemory->ReadU16(GetHL());
+                    SetNF(false);
+                    SetHF((GetA() ^ mMemory->ReadU16(GetHL()) ^ t) & 0x10);
+                    SetCF(GetA() & t & 0xFF00);
+                    SetZF((t & 0xFF) == 0x00);
+                    SetA(t & 0xFF);
+                    std::cout << "ADD A, (HL)" << std::endl;   
+                    cycles += 8;           
+                    break;
+                }
+
                 case 0xE0: {
                     SetA(mMemory->ReadU8(0xFF00 | mROM[PC++]));
                     std::cout << "ld (0xFF00 + " << (unsigned int) mROM[PC-1] << "), A" << std::endl;
@@ -304,6 +361,14 @@ namespace Gameboy {
                     mMemory->WriteU8(0xFF00 | GetC(), GetA());
                     std::cout << "ld (0xFF00 + C), A" << std::endl;
                     cycles += 8;
+                    break;
+                }
+
+                case 0xEA: {
+                    uint16_t addr = mROM[PC++] | (static_cast<uint16_t>(mROM[PC++]) << 8);
+                    mMemory->WriteU8(addr, GetA());
+                    std::cout << std::format("ld ({:04x}), A", addr) << std::endl;
+                    cycles += 16;
                     break;
                 }
 
