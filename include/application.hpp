@@ -15,7 +15,7 @@ class Application {
 	uint64_t mCurTime { 0 };
 	uint64_t mTargetFps { 60 };
 	float mDelta { 0.0 };
-
+    Gameboy::Clock mClock;
 
 public:
     static std::unique_ptr<Application> Create(){

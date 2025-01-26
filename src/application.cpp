@@ -18,8 +18,12 @@ Application::Application(){
 void Application::Run(){
     while(!mExit){
 
-        mCPU->ExecFrame();
-        mPPU->UpdateGraphics();
+        while(mClock.CurrentFrameCycles < mClock.CyclesPerFrame){
+            mCPU->Step(mClock.CurrentFrameCycles);
+            mPPU->Step(mClock.CurrentFrameCycles);
+        }
+
+        mPPU->RenderFrame();
 
         //if(mCPU->GetHalted()){
         //    mExit = true;
@@ -43,9 +47,10 @@ void Application::Run(){
         mDelta = ((float)curFrameTicks / 10000.0f);
         mDelta = 0.001f > mDelta ? 0.001f : mDelta;
 
-        if(curFrameTicks < (1000 / Gameboy::Info::FramesPerSecond)){
-            SDL_Delay((1000 / Gameboy::Info::FramesPerSecond) - curFrameTicks);
+        if(curFrameTicks < (1000 / mClock.FramesPerSecond)){
+            SDL_Delay((1000 / mClock.FramesPerSecond) - curFrameTicks);
         }
+        mClock.CurrentFrameCycles = 0; //reset cycles for next frame
     }
     SDL_Quit();
 }

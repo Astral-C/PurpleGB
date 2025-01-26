@@ -7,10 +7,13 @@
 
 namespace Gameboy {
 
-namespace Info {
-    extern uint32_t CyclesPerSecond;
-    extern uint32_t FramesPerSecond;
-    extern uint32_t CyclesPerFrame;
+struct Clock {
+    uint32_t CyclesPerSecond;
+    float FramesPerSecond;
+    uint32_t CyclesPerFrame;
+    uint32_t CurrentFrameCycles;
+    Clock();
+    ~Clock(){}
 };
 
 class CPU {
@@ -68,7 +71,7 @@ public:
 
     bool GetHalted() { return mHalt; }
 
-    void ExecFrame();
+    void Step(uint32_t& cycles);
 
     void LoadROM(std::string);
 

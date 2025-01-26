@@ -7,13 +7,24 @@
 
 namespace Gameboy {
 
+enum class PPUMode {
+    Mode0,
+    Mode1,
+    Mode2,
+    Mode3
+};
+
 class PPU {
     SDL_Renderer* mRenderer;
+    SDL_Texture* mTexture;
     std::shared_ptr<Memory> mMemory;
+    PPUMode mCurMode;
     PPU() = default;
+    int32_t mDots;
 
 public:
-    void UpdateGraphics();
+void RenderFrame();
+    void Step(uint32_t& cycles);
     static std::unique_ptr<PPU> Create(SDL_Window* win, std::shared_ptr<Memory> mem){
         if(win == nullptr) return nullptr;
         if(mem == nullptr) return nullptr;
