@@ -1,5 +1,6 @@
 #include <ppu.hpp>
 #include <bitset>
+#include <iostream>
 
 namespace Gameboy {
     uint32_t mPalette[4] = {0xC5CAA4FF, 0x8C926bFF, 0x4A5138FF, 0x181818FF};
@@ -44,8 +45,10 @@ namespace Gameboy {
         uint16_t objectTilesBasePtr = 0x8000;
         uint16_t bgTilesBasePtr = control[4] == 1 ? 0x8000 : 0x9000;
 
+        std::cout << "[PPU] LCD Control bits: " << control << std::endl;
         if(control[0]){ // lcd is on
             uint32_t scanline = mMemory->ReadU8(0xFF44);
+            std::cout << "[PPU]: currnt scaneline " << scanline << " current dots " << mDots << std::endl;
 
             // check if we'ce completed a scanline
             if(mDots >= 456){

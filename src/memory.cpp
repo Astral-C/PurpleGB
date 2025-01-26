@@ -13,6 +13,7 @@ uint16_t Memory::ReadU16(uint16_t address){
 }
 
 bool Memory::WriteU8(uint16_t address, uint8_t data){
+    mBuffer[address] = data;
     return true;
 }
 

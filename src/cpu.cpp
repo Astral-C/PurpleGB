@@ -343,8 +343,8 @@ namespace Gameboy {
                 break;
             }
             case 0xE0: {
-                SetA(mMemory->ReadU8(0xFF00 | mROM[PC++]));
-                std::cout << "ld (0xFF00 + " << (unsigned int) mROM[PC-1] << "), A" << std::endl;
+                mMemory->WriteU8(0xFF00 + mROM[PC++], GetA());
+                std::cout << std::format("ld (0xFF00 + 0x{:02x}), A[{:02x}]", mROM[PC-1], GetA()) << std::dec << std::endl;
                 cycles += 12;
                 break;
             }
