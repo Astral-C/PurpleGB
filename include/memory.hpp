@@ -10,6 +10,8 @@ class Memory {
     uint8_t mBuffer[0xFFFF];
 public:
 
+    uint8_t* GetBuffer() { return &mBuffer[0]; }
+
     uint8_t ReadU8(uint16_t);
     uint16_t ReadU16(uint16_t);
 

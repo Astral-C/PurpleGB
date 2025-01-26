@@ -6,7 +6,7 @@
 namespace Gameboy {
     Clock::Clock() {
         CyclesPerSecond = 4194304;
-        FramesPerSecond = 59.7f; // weh
+        FramesPerSecond = 60.0f; // weh
         CyclesPerFrame = CyclesPerSecond / FramesPerSecond;
 
         CurrentFrameCycles = 0;
@@ -48,6 +48,15 @@ namespace Gameboy {
 
     CPU::~CPU(){}
 
+    void CPU::LoadBios(std::string path){
+        std::fstream rom;
+        rom.open(path, std::ios::binary | std::ios::in);
+
+        rom.read((char*)mMemory->GetBuffer(), 0xFF);
+        
+        rom.close();
+    }
+    
     void CPU::LoadROM(std::string path){
         std::fstream rom;
         rom.open(path, std::ios::binary | std::ios::in);
@@ -56,15 +65,13 @@ namespace Gameboy {
         std::size_t romSize = rom.tellg();
         rom.seekg(0, std::ios_base::beg);
 
-        mROM.resize(romSize);
-
-        rom.read(reinterpret_cast<char*>(mROM.data()), mROM.size());
+        rom.read((char*)mMemory->GetBuffer(), romSize);
         
         rom.close();
     }
 
     void CPU::Step(uint32_t& cycles){
-        uint8_t opcode = mROM[PC++];
+        uint8_t opcode = mMemory->ReadU8(PC++);
         //std::cout << "Program Counter: " << std::hex << PC << std::dec << std::endl;
     
         switch (opcode){
@@ -75,7 +82,7 @@ namespace Gameboy {
             }
             
             case 0x01: {
-                SetBC(static_cast<uint16_t>(mROM[PC++]) | (static_cast<uint16_t>(mROM[PC++]) << 8));
+                SetBC(static_cast<uint16_t>(mMemory->ReadU8(PC++)) | (static_cast<uint16_t>(mMemory->ReadU8(PC++)) << 8));
                 std::cout << "ld BC, " << std::hex << (unsigned int)GetBC() << std::dec << std::endl;
                 cycles += 12;
                 break;
@@ -114,7 +121,7 @@ namespace Gameboy {
                 break;
             }
             case 0x06: {
-                SetB(mROM[PC++]);
+                SetB(mMemory->ReadU8(PC++));
                 std::cout << "ld B, " << std::hex << (unsigned int)GetB() << std::dec << std::endl;
                 cycles += 8;
                 break;
@@ -148,13 +155,13 @@ namespace Gameboy {
                 break;
             }
             case 0x0E: {
-                SetC(mROM[PC++]);
+                SetC(mMemory->ReadU8(PC++));
                 std::cout << "ld C, " << std::hex << (unsigned int)GetC() << std::dec << std::endl;
                 cycles += 8;
                 break;
             }
             case 0x11: {
-                SetDE(mROM[PC++] | (static_cast<uint16_t>(mROM[PC++]) << 8));
+                SetDE(mMemory->ReadU8(PC++) | (static_cast<uint16_t>(mMemory->ReadU8(PC++)) << 8));
                 std::cout << "ld DE, " << std::hex << (unsigned int)GetDE() << std::dec << std::endl;
                 cycles += 12;
                 break;
@@ -177,8 +184,8 @@ namespace Gameboy {
                 break;
             }
             case 0x18: {
-                int8_t to = static_cast<int8_t>(mROM[PC++]);
-                std::cout << "JR " << std::hex << (int)mROM[PC] << std::dec << std::endl;
+                int8_t to = static_cast<int8_t>(mMemory->ReadU8(PC++));
+                std::cout << "JR " << std::hex << (int)mMemory->ReadU8(PC) << std::dec << std::endl;
                 PC += to;
                 cycles += 12;
                 break;
@@ -190,13 +197,13 @@ namespace Gameboy {
                 break;
             }
             case 0x1E: {
-                SetE(mROM[PC++]);
-                std::cout << "LD E, " << (unsigned int)mROM[PC-1] << std::endl;
+                SetE(mMemory->ReadU8(PC++));
+                std::cout << "LD E, " << (unsigned int)mMemory->ReadU8(PC-1) << std::endl;
                 cycles += 8;
                 break;
             }
             case 0x20: {
-                int8_t to = static_cast<int8_t>(mROM[PC++]);
+                int8_t to = static_cast<int8_t>(mMemory->ReadU8(PC++));
                 if(!GetZF()){
                     PC += to;
                     cycles += 12;
@@ -207,7 +214,7 @@ namespace Gameboy {
                 break;
             }
             case 0x21: {
-                SetHL(mROM[PC++] | (static_cast<uint16_t>(mROM[PC++]) << 8));
+                SetHL(mMemory->ReadU8(PC++) | (static_cast<uint16_t>(mMemory->ReadU8(PC++)) << 8));
                 std::cout << "ld HL, " << std::hex << (unsigned int)GetHL() << std::dec << std::endl;
                 cycles += 12;
                 break;
@@ -226,7 +233,7 @@ namespace Gameboy {
                 break;
             }
             case 0x28: {
-                int8_t to = static_cast<int8_t>(mROM[PC++]);
+                int8_t to = static_cast<int8_t>(mMemory->ReadU8(PC++));
                 if(GetZF()){
                     PC += to;
                     cycles += 12;
@@ -237,13 +244,13 @@ namespace Gameboy {
                 break;
             }
             case 0x2E: {
-                SetL(mROM[PC++]);
-                std::cout << "LD L, " << (unsigned int)mROM[PC-1] << std::endl;
+                SetL(mMemory->ReadU8(PC++));
+                std::cout << "LD L, " << (unsigned int)mMemory->ReadU8(PC-1) << std::endl;
                 cycles += 8;
                 break;
             }
             case 0x31: {
-                SP = static_cast<uint16_t>(mROM[PC++]) | (static_cast<uint16_t>(mROM[PC++]) << 8);
+                SP = static_cast<uint16_t>(mMemory->ReadU8(PC++)) | (static_cast<uint16_t>(mMemory->ReadU8(PC++)) << 8);
                 std::cout << "ld SP, " << std::hex << SP << std::dec << std::endl;
                 cycles += 12;
                 break;
@@ -274,7 +281,7 @@ namespace Gameboy {
                 break;
             }
             case 0x3E: {
-                SetA(mROM[PC++]);
+                SetA(mMemory->ReadU8(PC++));
                 std::cout << "ld A, " << std::hex << (unsigned int)GetA() << std::dec << std::endl;
                 cycles += 8;
                 break;
@@ -343,8 +350,8 @@ namespace Gameboy {
                 break;
             }
             case 0xE0: {
-                mMemory->WriteU8(0xFF00 + mROM[PC++], GetA());
-                std::cout << std::format("ld (0xFF00 + 0x{:02x}), A[{:02x}]", mROM[PC-1], GetA()) << std::dec << std::endl;
+                mMemory->WriteU8(0xFF00 + mMemory->ReadU8(PC++), GetA());
+                std::cout << std::format("ld (0xFF00 + 0x{:02x}), A[{:02x}]", mMemory->ReadU8(PC-1), GetA()) << std::dec << std::endl;
                 cycles += 12;
                 break;
             }
@@ -355,7 +362,7 @@ namespace Gameboy {
                 break;
             }
             case 0xEA: {
-                uint16_t addr = mROM[PC++] | (static_cast<uint16_t>(mROM[PC++]) << 8);
+                uint16_t addr = mMemory->ReadU8(PC++) | (static_cast<uint16_t>(mMemory->ReadU8(PC++)) << 8);
                 mMemory->WriteU8(addr, GetA());
                 std::cout << std::format("ld ({:04x}), A", addr) << std::endl;
                 cycles += 16;
@@ -389,7 +396,7 @@ namespace Gameboy {
                 break;
             }
             case 0xCB: {
-                uint8_t cbopcode = mROM[PC++];
+                uint8_t cbopcode = mMemory->ReadU8(PC++);
                 cycles += 4;
                 switch(cbopcode){
                     case 0x11: {
@@ -415,7 +422,7 @@ namespace Gameboy {
                 break;
             }
             case 0xCD: {
-                uint16_t addr = static_cast<uint16_t>(mROM[PC++]) | (static_cast<uint16_t>(mROM[PC++]) << 8);
+                uint16_t addr = static_cast<uint16_t>(mMemory->ReadU8(PC++)) | (static_cast<uint16_t>(mMemory->ReadU8(PC++)) << 8);
                 SP -= 2;
                 mMemory->WriteU16(SP, PC);
                 std::cout << std::format("Wrote Return Pointer {:04x}", mMemory->ReadU16(SP)) << std::endl;
@@ -425,19 +432,20 @@ namespace Gameboy {
                 break;
             }
             case 0xF0: {
-                SetA(mMemory->ReadU8(0xFF00 | mROM[PC++]));
-                std::cout << std::format("ld A, (0xFF00 + {:02x})", mROM[PC-1]) << std::endl;
+                SetA(mMemory->ReadU8(0xFF00 | mMemory->ReadU8(PC++)));
+                std::cout << std::format("ld A, (0xFF00 + {:02x})", mMemory->ReadU8(PC-1)) << std::endl;
                 cycles += 12;
                 break;
             }
             case 0xFE: {
-                uint8_t u8 = mROM[PC++];
-                uint8_t t = GetA() - u8;
-                SetZF(t == 0);
+                uint8_t u8 = mMemory->ReadU8(PC++);
+                uint16_t t = static_cast<uint16_t>(GetA()) - static_cast<uint16_t>(u8);
+                SetZF((t & 0xFF) == 0x00);
                 SetNF(true);
-                SetHF((GetA() & 0x0F) == 0);
-                SetCF(u8 > GetA());
+                SetHF((GetA() ^ u8 ^ t) & 0x10);
+                SetCF(t & 0xFF00);
                 std::cout << std::format("CP A[{:02x}], ", GetA()) << std::hex << (unsigned int)u8 << std::dec << std::endl;
+                cycles += 8;
                 break;
             }
             default: {

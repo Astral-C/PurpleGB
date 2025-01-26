@@ -4,6 +4,7 @@
 #include <memory>
 #include <SDL2/SDL.h>
 #include <memory.hpp>
+#include <array>
 
 namespace Gameboy {
 
@@ -20,7 +21,9 @@ class PPU {
     std::shared_ptr<Memory> mMemory;
     PPUMode mCurMode;
     PPU() = default;
-    int32_t mDots;
+    uint32_t mDots;
+    uint32_t mCycles; // keeps track of how many cpu cycles the ppu has run so we can catch up with the cpu
+    std::array<uint32_t, 160*144> mPixels;
 
 public:
 void RenderFrame();

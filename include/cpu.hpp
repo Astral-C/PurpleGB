@@ -73,6 +73,7 @@ public:
 
     void Step(uint32_t& cycles);
 
+    void LoadBios(std::string);
     void LoadROM(std::string);
 
     static std::unique_ptr<CPU> Create(std::shared_ptr<Memory> mem){

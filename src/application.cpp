@@ -12,7 +12,8 @@ Application::Application(){
     mCPU = Gameboy::CPU::Create(mMemory);
     mPPU = Gameboy::PPU::Create(mWindow, mMemory);
 
-    mCPU->LoadROM("dmg_boot.bin");
+    mCPU->LoadROM("cpu_instrs.gb");
+    mCPU->LoadBios("dmg_boot.bin");
 }
 
 void Application::Run(){
