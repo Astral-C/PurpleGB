@@ -44,6 +44,7 @@ namespace Gameboy {
 
     CPU::CPU(std::shared_ptr<Memory> mem){
         mMemory = mem;
+        PC = 0x00;
     }
 
     CPU::~CPU(){}
@@ -166,6 +167,12 @@ namespace Gameboy {
                 cycles += 12;
                 break;
             }
+            case 0x12: {
+                mMemory->WriteU8(GetDE(), GetA());
+                std::cout << "ld (DE), " << std::hex << (unsigned int)GetA() << std::dec << std::endl;
+                cycles += 8;
+                break;
+            }
             case 0x13: {
                 SetDE(GetDE()+1);
                 std::cout << "inc DE" << std::endl;
@@ -194,6 +201,15 @@ namespace Gameboy {
                 std::cout << "LD A,(DE)" << std::endl;
                 SetA(mMemory->ReadU8(GetDE()));
                 cycles += 8;
+                break;
+            }
+            case 0x1C: {
+                std::cout << "INC E" << std::endl;
+                SetE(GetE()+1);
+                SetZF(GetE() == 0x00);
+                SetNF(false);
+                SetHF((GetE() & 0x0F) == 0);
+                cycles += 4;
                 break;
             }
             case 0x1E: {
@@ -243,6 +259,13 @@ namespace Gameboy {
                 std::cout << "jr Z, " << (int)to << std::endl;
                 break;
             }
+            case 0x2A: {
+                SetA(mMemory->ReadU8(GetHL()+1));
+                SetHL(GetHL()+1);
+                std::cout << "ld A, (HL+)" << std::endl;
+                cycles += 8;
+                break;
+            }
             case 0x2E: {
                 SetL(mMemory->ReadU8(PC++));
                 std::cout << "LD L, " << (unsigned int)mMemory->ReadU8(PC-1) << std::endl;
@@ -268,6 +291,16 @@ namespace Gameboy {
                 SetZF(t == 0);
                 SetHF(mMemory->ReadU8(GetHL()) & 0x0F);
                 mMemory->WriteU8(GetHL(), t);
+                break;
+            }
+            case 0x3C: {
+                std::cout << "inc A" << std::endl;
+                uint8_t a = GetA();
+                SetB(a+1);
+                SetZF(GetA() == 0x00);
+                SetNF(false);
+                SetHF((a & 0x0F) == 0);
+                cycles += 4;
                 break;
             }
             case 0x3D: {
@@ -304,6 +337,12 @@ namespace Gameboy {
                 cycles += 4;
                 break;
             }
+            case 0x66: {
+                SetH(mMemory->ReadU8(GetHL()));
+                std::cout << "ld H, (HL)" << std::endl;
+                cycles += 8;
+                break;
+            }
             case 0x67: {
                 SetH(GetA());
                 std::cout << "ld H, A" << std::endl;
@@ -337,6 +376,17 @@ namespace Gameboy {
                 std::cout << "ADD A, B" << std::endl;
                 cycles += 4;
                 break;
+            }
+            case 0x85: {
+                uint16_t t = static_cast<uint16_t>(GetA()) + static_cast<uint16_t>(GetL());
+                SetNF(false);
+                SetHF((GetA() ^ GetL() ^ t) & 0x10);
+                SetCF(GetA() & t & 0xFF00);
+                SetZF((t & 0xFF) == 0x00);
+                SetA(t & 0xFF);
+                std::cout << "ADD A, L" << std::endl;
+                cycles += 4;           
+                break;                
             }
             case 0x86: {
                 uint16_t t = static_cast<uint16_t>(GetA()) + mMemory->ReadU16(GetHL());
@@ -374,6 +424,26 @@ namespace Gameboy {
                 cycles += 4;
                 break;
             }
+            case 0xB1: {
+                SetA(GetA()|GetB());
+                SetZF(GetA() == 0);
+                SetNF(0);
+                SetHF(0);
+                SetCF(0);
+                std::cout << "or A, B" << std::endl;
+                cycles += 4;
+                break;
+            }
+            case 0xB3: {
+                SetA(GetA()|GetE());
+                SetZF(GetA() == 0);
+                SetNF(0);
+                SetHF(0);
+                SetCF(0);
+                std::cout << "or A, E" << std::endl;
+                cycles += 4;
+                break;
+            }
             case 0xC1: {
                 SetBC(mMemory->ReadU16(SP));
                 SP += 2;
@@ -381,6 +451,17 @@ namespace Gameboy {
                 cycles += 12;
                 break;
             } 
+            case 0xC3: {
+                uint16_t to = static_cast<uint16_t>(mMemory->ReadU8(PC++)) | (static_cast<uint16_t>(mMemory->ReadU8(PC++)) << 8);
+                if(!GetZF()){
+                    PC += to;
+                    cycles += 16;
+                } else {
+                    cycles += 12;
+                }
+                std::cout << "jp NZ, " << (int)to << std::endl;
+                break;
+            }
             case 0xC5: {
                 SP -= 2;
                 mMemory->WriteU16(SP, GetBC());
@@ -421,6 +502,20 @@ namespace Gameboy {
                 }
                 break;
             }
+            case 0xCC: {
+                uint16_t addr = static_cast<uint16_t>(mMemory->ReadU8(PC++)) | (static_cast<uint16_t>(mMemory->ReadU8(PC++)) << 8);
+                std::cout << "CALL Z, " << std::hex << addr << std::dec << std::endl;
+                if(GetZF()){
+                    SP -= 2;
+                    mMemory->WriteU16(SP, PC);
+                    std::cout << std::format("Wrote Return Pointer {:04x}", mMemory->ReadU16(SP)) << std::endl;
+                    PC = addr;
+                    cycles += 24;
+                } else {
+                    cycles +=  12;
+                }
+                break;
+            }
             case 0xCD: {
                 uint16_t addr = static_cast<uint16_t>(mMemory->ReadU8(PC++)) | (static_cast<uint16_t>(mMemory->ReadU8(PC++)) << 8);
                 SP -= 2;
@@ -431,6 +526,19 @@ namespace Gameboy {
                 cycles += 24;
                 break;
             }
+
+            case 0xCE: {
+                uint16_t res = GetA() + mMemory->ReadU8(PC++) + GetCF();
+                SetZF(GetA() == 0x00);
+                SetNF(0);
+                SetHF((GetA() ^ mMemory->ReadU8(PC-1) ^ GetCF()) & 0x10);
+                SetCF(res & 0xFF00);
+                SetA(res & 0xFF);
+                std::cout << std::format("adc A, ", mMemory->ReadU8(PC-1)) << std::endl;
+                cycles += 8;
+                break;
+            }
+
             case 0xF0: {
                 SetA(mMemory->ReadU8(0xFF00 | mMemory->ReadU8(PC++)));
                 std::cout << std::format("ld A, (0xFF00 + {:02x})", mMemory->ReadU8(PC-1)) << std::endl;

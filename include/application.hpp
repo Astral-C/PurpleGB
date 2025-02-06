@@ -8,7 +8,7 @@ class Application {
     SDL_Window* mWindow { nullptr };
 
     std::unique_ptr<Gameboy::CPU> mCPU { nullptr };
-    std::unique_ptr<Gameboy::PPU> mPPU { nullptr };
+    std::shared_ptr<Gameboy::PPU> mPPU { nullptr };
     std::shared_ptr<Gameboy::Memory> mMemory { nullptr };
 
 	uint64_t mPrevTime { 0 };

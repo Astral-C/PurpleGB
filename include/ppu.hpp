@@ -8,6 +8,8 @@
 
 namespace Gameboy {
 
+class Memory;
+
 enum class PPUMode {
     Mode0,
     Mode1,
@@ -22,10 +24,13 @@ class PPU {
     PPUMode mCurMode;
     PPU() = default;
     uint32_t mDots;
-    uint32_t mCycles; // keeps track of how many cpu cycles the ppu has run so we can catch up with the cpu
+    uint32_t mWindowLines;
     std::array<uint32_t, 160*144> mPixels;
 
 public:
+
+uint8_t mTiles[384][8][8];
+
 void RenderFrame();
     void Step(uint32_t& cycles);
     static std::unique_ptr<PPU> Create(SDL_Window* win, std::shared_ptr<Memory> mem){

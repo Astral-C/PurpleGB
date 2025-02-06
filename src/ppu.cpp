@@ -2,6 +2,10 @@
 #include <bitset>
 #include <iostream>
 #include <cstring>
+#include <filesystem>
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image_write.h>
+#include <format>
 
 namespace Gameboy {
     uint32_t mPalette[4] = {0xC5CAA4FF, 0x8C926BFF, 0x4A5138FF, 0x181818FF};
@@ -23,7 +27,7 @@ namespace Gameboy {
         mMemory = mem;
         mCurMode = PPUMode::Mode2;
         mDots = 0;
-        mCycles = 0;
+        mWindowLines = 0;
     }
 
     void PPU::RenderFrame(){
@@ -34,12 +38,11 @@ namespace Gameboy {
         SDL_LockTexture(mTexture, nullptr, reinterpret_cast<void**>(&pixels), &pitch);
 
         //update
-        std::memcpy(pixels, mPixels.data(), mPixels.size());
+        std::memcpy(pixels, mPixels.data(), mPixels.size()*4);
 
         SDL_UnlockTexture(mTexture);
         SDL_RenderCopy(mRenderer, mTexture, nullptr, nullptr);
         SDL_RenderPresent(mRenderer);  
-        mCycles = 0;
     }
 
     void  PPU::Step(uint32_t& cycles){
@@ -47,86 +50,72 @@ namespace Gameboy {
         std::bitset<8> status = mMemory->ReadU8(0xFF41);
         std::bitset<8> palette = mMemory->ReadU8(0xFF47);
 
-        uint16_t backgroundMapAddr = control[1] ? 0x9800 : 0x9C00;
         uint16_t objectTilesBasePtr = 0x8000;
-        uint16_t bgTilesBasePtr = control[4] ? 0x8000 : 0x8800;
+
+        uint16_t tilesBasePtr = control[4] ? 0x8000 : 0x8800;
+        uint16_t backgroundMapAddr = control[3] ? 0x9C00 : 0x9800;
+        
+        uint16_t oamMemPtr = 0xFE00;
+
+        std::array<uint32_t, 10> ScanlineOAMEntries;
+
+        mDots += cycles;
 
         //std::cout << "[PPU] LCD Control bits: " << control << std::endl;
         if(control[0]){ // lcd is on
             uint32_t scanline = mMemory->ReadU8(0xFF44);
 
-            while(mCycles < cycles){
-                // check if we'ce completed a scanline
-                if(mDots >= 456){
-                    mDots = 0;
-                    scanline++;
-                    mMemory->WriteU8(0xFF44, scanline);
-                    if(scanline == 144){
-                        // entered vblank, do interrupt
-                        mCurMode = PPUMode::Mode1;
-                    } else if(scanline > 153){
-                        scanline = 0;
-                        mMemory->WriteU8(0xFF44, 0);
-                        mCurMode = PPUMode::Mode2;
-                    } else {
-                        mCurMode = PPUMode::Mode2;
-                    }
+            // check if we'ce completed a scanline
+            if(mDots >= 456){
+                mDots = 0;
+                scanline++;
+                mMemory->WriteU8(0xFF44, scanline);
+                if(scanline >= 144){
+                    // entered vblank, do interrupt
+                    mCurMode = PPUMode::Mode1;
+                    mWindowLines = 0;
+                } else if(scanline >= 153){
+                    scanline = 0;
+                    mMemory->WriteU8(0xFF44, 0);
+                    mCurMode = PPUMode::Mode2;
+                } else {
+                    mCurMode = PPUMode::Mode2;
                 }
+            }
 
                 
-                if(mCurMode == PPUMode::Mode2){ // first 80 dots is OAM scan
-                    
-                    if(mDots >= 79) mCurMode = PPUMode::Mode3; // 0-79 first 80 dots 
-                } else if(mCurMode == PPUMode::Mode3){
-                    uint8_t scrollX = mMemory->ReadU8(0xFF42);
-                    uint8_t scrollY = mMemory->ReadU8(0xFF43);
+            if(mCurMode == PPUMode::Mode2){ // first 80 dots is OAM scan
+                if(mDots >= 80){
+                    mDots = 0;
 
-                    uint8_t yPos = scrollY + mMemory->ReadU8(0xFF44);
-                    uint16_t tileRow = (yPos / 8) * 32;
+                    // do oam search
 
-                    for(uint8_t p = 0; p < 160; p++){
-                        uint8_t xPos = p + scrollX;
+                    mCurMode = PPUMode::Mode3; // 0-79 first 80 dots
+                } 
+            } else if(mCurMode == PPUMode::Mode3){
+                if(mDots >= 172){
+                    mDots = 0;
 
-                        uint16_t tileCol = (xPos / 8);
-                        uint16_t tileAddr = backgroundMapAddr + tileRow + tileCol;
+                    uint8_t scrollY = mMemory->ReadU8(0xFF42);
+                    uint8_t scrollX = mMemory->ReadU8(0xFF43);
 
-                        int8_t tileNum = (int8_t)(mMemory->ReadU8(tileAddr));
+                    for(uint8_t c = 0; c < 160; c++){
 
-                        uint16_t tileDataAddr = bgTilesBasePtr + ((tileNum + (control[4] ? 0 : 128)) * 16);
-                        uint8_t line = (yPos % 8) * 2;
+                        uint16_t x = (c + scrollX) % 255;
+                        uint16_t y = (scanline + scrollY) % 255;
 
-                        std::bitset<8> l1 = mMemory->ReadU8(tileDataAddr  + line);
-                        std::bitset<8> l2 = mMemory->ReadU8(tileDataAddr  + line + 1);
+                        uint16_t col = floor(x / 8);
+                        uint16_t row = floor(y / 8);
+                        uint16_t tileOffset = backgroundMapAddr + (row * 32) + col;
+                        uint16_t tileID = (mMemory->ReadU8(tileOffset));
 
-                        int colorBit = ((xPos % 8) - 7) * -1;
-                        int colorNum = (l2[colorBit] << 1) | l1[colorBit << 1];
-                        uint8_t color = 0;
+                        mPixels[(scanline * 160) + c] =  mPalette[mTiles[tileID][y%8][x%8]];
 
-                        std::bitset<8> palette = mMemory->ReadU8(0xFF47);
-                        switch (colorNum){
-                        case 0:
-                            color = (palette[1] << 1) | palette[0];
-                            break;
-                        case 1:
-                            color = (palette[3] << 1) | palette[2];
-                            break;
-                        case 2:
-                            color = (palette[5] << 1) | palette[4];
-                            break;
-                        case 3:
-                            color = (palette[7] << 1) | palette[6];
-                            break;
-                        }
-
-                        mPixels[(scanline * 144) + p] = mPalette[color];
                     }
-
-                } else if(mCurMode == PPUMode::Mode0) {
-                    //hblank
+                    mCurMode = PPUMode::Mode0;
                 }
-
-                mDots++;
-                mCycles++;
+            } else if(mCurMode == PPUMode::Mode0) {
+                //hblank
             }
         }
 

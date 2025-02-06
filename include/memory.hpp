@@ -3,13 +3,18 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <ppu.hpp>
 
 namespace Gameboy {
 
+class PPU;
+
 class Memory {
     uint8_t mBuffer[0xFFFF];
+    std::shared_ptr<PPU> mPPURef;
 public:
 
+    void SetPPURef(std::shared_ptr<PPU> r){ mPPURef = r; }
     uint8_t* GetBuffer() { return &mBuffer[0]; }
 
     uint8_t ReadU8(uint16_t);
