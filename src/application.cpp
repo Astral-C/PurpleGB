@@ -14,8 +14,9 @@ Application::Application(){
     mPPU = Gameboy::PPU::Create(mWindow, mMemory);
     mMemory->SetPPURef(mPPU);
 
-    //mCPU->LoadROM("cpu_instrs.gb");
-    mCPU->LoadROM("tetris.gb");
+    mCPU->LoadROM("cpu_instrs.gb");
+    //mCPU->LoadROM("tetris.gb");
+    //mCPU->LoadROM("drmario.gb");
     mCPU->LoadBios("dmg_boot.bin");
 }
 

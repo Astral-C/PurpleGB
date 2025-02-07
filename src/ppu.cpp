@@ -62,26 +62,26 @@ namespace Gameboy {
         mDots += cycles;
 
         //std::cout << "[PPU] LCD Control bits: " << control << std::endl;
-        if(control[0]){ // lcd is on
-            uint32_t scanline = mMemory->ReadU8(0xFF44);
+        uint32_t scanline = mMemory->ReadU8(0xFF44);
 
             // check if we'ce completed a scanline
-            if(mDots >= 456){
-                mDots = 0;
-                scanline++;
-                mMemory->WriteU8(0xFF44, scanline);
-                if(scanline >= 144){
-                    // entered vblank, do interrupt
-                    mCurMode = PPUMode::Mode1;
-                    mWindowLines = 0;
-                } else if(scanline >= 153){
-                    scanline = 0;
-                    mMemory->WriteU8(0xFF44, 0);
-                    mCurMode = PPUMode::Mode2;
-                } else {
-                    mCurMode = PPUMode::Mode2;
-                }
+        if(mDots >= 456){
+            mDots = 0;
+            scanline++;
+            mMemory->WriteU8(0xFF44, scanline);
+            if(scanline >= 144){
+                // entered vblank, do interrupt
+                mCurMode = PPUMode::Mode1;
+                mWindowLines = 0;
+            } else if(scanline >= 153){
+                scanline = 0;
+                mMemory->WriteU8(0xFF44, 0);
+                mCurMode = PPUMode::Mode2;
+            } else {
+                mCurMode = PPUMode::Mode2;
             }
+        }
+        if(control[0]){ // lcd is on
 
                 
             if(mCurMode == PPUMode::Mode2){ // first 80 dots is OAM scan
